@@ -1,0 +1,21 @@
+node_modules
+.next
+out
+.env*.local
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+test-results
+playwright-report
+
+# Argus C2PA ephemeral signing keys
+.c2pa-keys/
+
+# Claude Code agent worktrees
+.claude/
+
+# Local dev scratch + backups
+scratchpad.md
+*.bak
+*.orig
+*.swp
