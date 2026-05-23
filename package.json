@@ -7,13 +7,21 @@
     "build": "next build",
     "start": "next start",
     "test:ui": "playwright test",
-    "seed": "tsx scripts/seed-exif.ts"
+    "seed": "tsx scripts/seed-exif.ts",
+    "agent": "tsx agent-worker/argus-agent.mts dev",
+    "agent:start": "tsx agent-worker/argus-agent.mts start"
   },
   "dependencies": {
+    "@google/genai": "^2.6.0",
     "@langchain/core": "^1.1.48",
     "@langchain/langgraph": "^1.3.2",
+    "@livekit/agents": "^1.4.4",
+    "@livekit/agents-plugin-google": "^1.4.4",
+    "@livekit/agents-plugin-silero": "^1.4.4",
     "@supabase/supabase-js": "^2.45.0",
     "leaflet": "^1.9.4",
+    "livekit-client": "^2.19.0",
+    "livekit-server-sdk": "^2.15.3",
     "mapbox-gl": "^3.23.1",
     "next": "14.2.15",
     "nodemailer": "^8.0.7",

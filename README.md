@@ -159,6 +159,32 @@ npm run build   # production build
 
 Do **not** run `next build` while `next dev` is alive — `.next/` corrupts the dev server until cleared.
 
+## Orchestration (LangGraph)
+
+The agent pipeline is a LangGraph `StateGraph` in `lib/orchestration/`. A single
+intake fans out to provenance → publish → alert → vision → sentinel → anchor,
+with parallel atlas/intel/osint/pulse branches. `/api/launch-pipeline`
+geocodes for a fast response and hands off to the graph; per-agent progress
+streams to the client via `pipeline_events`. A `suspect` provenance verdict
+gates public publishing, and Sentinel runs *after* vision search via a real
+edge (no timers).
+
+## Realtime voice intake (LiveKit + Gemini Live)
+
+The `/agente-live` page is the realtime voice intake. It connects to a LiveKit
+room; a standalone worker runs the Spanish interview as a Gemini Live session
+and signals the browser to fire the pipeline once it has enough to act on.
+
+```bash
+# 1. fill .env.local with LiveKit Cloud + Gemini keys (see .env.example):
+#    NEXT_PUBLIC_LIVEKIT_URL / LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET / GEMINI_API_KEY
+npm run dev      # Next app (localhost:3000) → open /agente-live
+npm run agent    # the Gemini Live voice worker (separate process)
+```
+
+Simli still renders the avatar (lip-synced from the agent audio track). The
+legacy push-to-talk `/agente` page remains until the LiveKit path is verified.
+
 ## License
 
 MIT.
