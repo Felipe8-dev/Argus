@@ -10,6 +10,8 @@
     "seed": "tsx scripts/seed-exif.ts"
   },
   "dependencies": {
+    "@langchain/core": "^1.1.48",
+    "@langchain/langgraph": "^1.3.2",
     "@supabase/supabase-js": "^2.45.0",
     "leaflet": "^1.9.4",
     "mapbox-gl": "^3.23.1",
