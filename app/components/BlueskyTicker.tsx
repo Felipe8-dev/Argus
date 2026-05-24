@@ -33,6 +33,7 @@ function buildPermalink(post: Post): string | null {
 export default function BlueskyTicker({ caseId }: { caseId: string | null }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [connected, setConnected] = useState(false);
+  const [min, setMin] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -58,7 +59,11 @@ export default function BlueskyTicker({ caseId }: { caseId: string | null }) {
   if (!caseId) return null;
 
   return (
-    <aside className="bsky-ticker">
+    <aside className={`bsky-ticker minw${min ? ' is-min' : ''}`}>
+      <button className="minw-btn" onClick={() => setMin((v) => !v)} title={min ? 'Expandir' : 'Minimizar'}>
+        {min ? '+' : '–'}
+      </button>
+      <span className="minw-label">Señal social</span>
       <header className="bsky-head">
         <div>
           <span className="bsky-kicker">señal social · live</span>

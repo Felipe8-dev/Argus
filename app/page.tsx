@@ -109,6 +109,10 @@ export default function ArgusApp() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState<string | null>(null);
   const [scanSrc, setScanSrc] = useState<string | null>(null); // portrait scan popup
+  // Minimizable map panels (the match-scanner panel is intentionally excluded).
+  const [minCase, setMinCase] = useState(false);
+  const [minAgents, setMinAgents] = useState(false);
+  const [minTele, setMinTele] = useState(false);
   const [phone, setPhone] = useState('');
   const [authorityEmail, setAuthorityEmail] = useState('');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
@@ -843,7 +847,11 @@ export default function ArgusApp() {
       </header>
 
       {/* Case widget — top-left */}
-      <aside className="ops-widget ops-widget--case">
+      <aside className={`ops-widget ops-widget--case minw${minCase ? ' is-min' : ''}`}>
+        <button className="minw-btn" onClick={() => setMinCase((v) => !v)} title={minCase ? 'Expandir' : 'Minimizar'}>
+          {minCase ? '+' : '–'}
+        </button>
+        <span className="minw-label">Caso</span>
         <div className="ops-case-head">
           <div className="ops-case-portrait">
             {selectedCase?.portrait_url ? (
@@ -912,7 +920,11 @@ export default function ArgusApp() {
       </aside>
 
       {/* Agents widget — top-right */}
-      <aside className="ops-widget ops-widget--agents">
+      <aside className={`ops-widget ops-widget--agents minw${minAgents ? ' is-min' : ''}`}>
+        <button className="minw-btn" onClick={() => setMinAgents((v) => !v)} title={minAgents ? 'Expandir' : 'Minimizar'}>
+          {minAgents ? '+' : '–'}
+        </button>
+        <span className="minw-label">Agentes</span>
         <header className="ops-widget-head">
           <h2 data-index="/01">Agentes</h2>
           <span>
@@ -934,7 +946,11 @@ export default function ArgusApp() {
       </aside>
 
       {/* Telemetry widget — bottom-left */}
-      <aside className="ops-widget ops-widget--telemetry">
+      <aside className={`ops-widget ops-widget--telemetry minw${minTele ? ' is-min' : ''}`}>
+        <button className="minw-btn" onClick={() => setMinTele((v) => !v)} title={minTele ? 'Expandir' : 'Minimizar'}>
+          {minTele ? '+' : '–'}
+        </button>
+        <span className="minw-label">Telemetría</span>
         <header className="ops-widget-head">
           <h2 data-index="/02">Telemetría</h2>
           <time>LIVE</time>
@@ -957,8 +973,8 @@ export default function ArgusApp() {
       </aside>
 
       {/* Reconocimiento facial — escáner CV sobre la media de la coincidencia.
-          Aparece cuando un agente reporta un match con foto/video y el caso
-          tiene retrato. Colapsable con <details> (sin estado extra). */}
+          SIEMPRE visible (no minimizable) y por encima del resto (z-index alto):
+          es el análisis final del match. */}
       {(() => {
         const scan = [...selectedMatches]
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -969,18 +985,15 @@ export default function ArgusApp() {
         // scanned, whereas the candidate image is directly loadable.
         const media = (scan.photo_url || scan.source_url) as string;
         return (
-          <details
-            open
+          <div
             className="ops-widget"
-            style={{ position: 'fixed', right: 16, bottom: 84, width: 'min(420px, 92vw)', zIndex: 45, padding: 12 }}
+            style={{ position: 'fixed', right: 16, bottom: 84, width: 'min(420px, 92vw)', zIndex: 70, padding: 12 }}
           >
-            <summary
-              style={{ cursor: 'pointer', font: '600 12px ui-monospace, monospace', color: '#00e5ff', marginBottom: 8 }}
-            >
+            <div style={{ font: '600 12px ui-monospace, monospace', color: '#00e5ff', marginBottom: 8 }}>
               🔍 Reconocimiento facial · coincidencia
-            </summary>
+            </div>
             <MatchScanner key={scan.id} mediaUrl={media} portraitUrl={selectedCase.portrait_url} />
-          </details>
+          </div>
         );
       })()}
 

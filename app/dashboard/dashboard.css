@@ -1699,6 +1699,42 @@
   color: var(--text-hi);
 }
 
+/* ── Minimizable panels (minw) ────────────────────────────────── */
+.minw-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-mid, #9fb3c8);
+  cursor: pointer;
+  font: 700 14px/1 var(--font-mono, ui-monospace), monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.minw-btn:hover { color: var(--text-hi); background: rgba(255, 255, 255, 0.12); }
+.minw-label {
+  display: none;
+  font: 600 11px/1.4 var(--font-mono, ui-monospace), monospace;
+  letter-spacing: 0.06em;
+  color: var(--text-mid, #9fb3c8);
+  padding: 4px 30px 4px 4px;
+  white-space: nowrap;
+}
+.minw.is-min {
+  max-height: 38px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+.minw.is-min > *:not(.minw-btn):not(.minw-label) { display: none !important; }
+.minw.is-min .minw-label { display: block; }
+
 /* ── Top glass bar (sticky) ───────────────────────────────────── */
 .ops-glass-bar {
   position: fixed;
