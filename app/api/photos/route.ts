@@ -18,15 +18,24 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const base = new URL(req.url).origin;
 
+  // Allow a relative path (e.g. /demo/match.jpg served from public/) so the
+  // controlled-test target doesn't depend on the deployment URL.
+  const rawTargetImg = process.env.FACEBOOK_TARGET_IMAGE_URL;
+  const targetImgUrl = rawTargetImg
+    ? rawTargetImg.startsWith('/')
+      ? `${base}${rawTargetImg}`
+      : rawTargetImg
+    : null;
+
   const target =
-    process.env.FACEBOOK_TARGET_IMAGE_URL
+    targetImgUrl
       ? {
-          url: process.env.FACEBOOK_TARGET_IMAGE_URL,
+          url: targetImgUrl,
           source_site: 'facebook-target',
           source_page:
             process.env.FACEBOOK_TARGET_POST_URL ||
             process.env.FACEBOOK_TARGET_PROFILE_URL ||
-            process.env.FACEBOOK_TARGET_IMAGE_URL,
+            targetImgUrl,
           posted_by: process.env.FACEBOOK_TARGET_NAME || 'facebook-target',
           posted_at: new Date().toISOString(),
           gps_lat: Number(process.env.FACEBOOK_TARGET_GPS_LAT || 10.4236),

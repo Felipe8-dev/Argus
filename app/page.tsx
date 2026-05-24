@@ -949,7 +949,10 @@ export default function ArgusApp() {
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .find((m) => m.source_url || m.photo_url);
         if (!scan || !selectedCase?.portrait_url) return null;
-        const media = (scan.source_url || scan.photo_url) as string;
+        // Prefer the direct media file (photo_url) over the post page
+        // (source_url) — a Facebook post URL hits a login wall and can't be
+        // scanned, whereas the candidate image is directly loadable.
+        const media = (scan.photo_url || scan.source_url) as string;
         return (
           <details
             open
