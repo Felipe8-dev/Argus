@@ -1,8 +1,67 @@
 'use client';
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import './agente.css';
 
 type Status = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking';
+
+// Editable summary panel — ordered fields the family can review/correct before
+// the search pipeline runs. Mirrors the keys the interview agent extracts.
+const REVIEW_FIELDS: { key: string; label: string }[] = [
+  { key: 'nombre', label: 'Nombre' },
+  { key: 'edad_aprox', label: 'Edad aproximada' },
+  { key: 'genero', label: 'Género' },
+  { key: 'tono_piel', label: 'Tono de piel' },
+  { key: 'cabello', label: 'Cabello' },
+  { key: 'ojos', label: 'Ojos' },
+  { key: 'altura_cm', label: 'Altura (cm)' },
+  { key: 'contextura', label: 'Contextura' },
+  { key: 'ropa', label: 'Ropa' },
+  { key: 'senales_particulares', label: 'Señales particulares (separadas por coma)' },
+  { key: 'ultima_ubicacion', label: 'Última ubicación' },
+  { key: 'fecha_desaparicion', label: 'Fecha de desaparición' },
+  { key: 'hora_aproximada', label: 'Hora aproximada' },
+  { key: 'circunstancias', label: 'Circunstancias' },
+];
+const NUMERIC_FIELDS = new Set(['edad_aprox', 'altura_cm']);
+
+/** Flatten the extracted description into editable string fields for the panel. */
+function toEditable(desc: any): Record<string, string> {
+  const src = desc || {};
+  const out: Record<string, string> = {};
+  for (const { key } of REVIEW_FIELDS) {
+    const v = src[key];
+    if (key === 'senales_particulares') {
+      out[key] = Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v);
+    } else {
+      out[key] = v == null ? '' : String(v);
+    }
+  }
+  return out;
+}
+
+/**
+ * Merge the family's edits back onto the original description object. Unknown
+ * keys (anything not shown in the panel) are preserved untouched; the family's
+ * values win for every field they could see.
+ */
+function buildFinalDescription(edits: Record<string, string>, original: any): any {
+  const final: any = { ...(original || {}) };
+  for (const { key } of REVIEW_FIELDS) {
+    const raw = (edits[key] ?? '').trim();
+    if (key === 'senales_particulares') {
+      final[key] = raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    } else if (raw === '') {
+      delete final[key];
+    } else if (NUMERIC_FIELDS.has(key)) {
+      const n = Number(raw);
+      final[key] = Number.isFinite(n) ? n : raw;
+    } else {
+      final[key] = raw;
+    }
+  }
+  return final;
+}
 
 export default function AgentePage() {
   const [status, setStatus] = useState<Status>('idle');
@@ -17,6 +76,11 @@ export default function AgentePage() {
   const [photoName, setPhotoName] = useState<string | null>(null);
   const [description, setDescription] = useState<any>(null);
   const [pipelineStatus, setPipelineStatus] = useState<string | null>(null);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewData, setReviewData] = useState<Record<string, string> | null>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const reviewOriginalRef = useRef<any>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -138,6 +202,36 @@ export default function AgentePage() {
     }
   }, []);
 
+  // ---- Confirm the family-edited summary, then launch the search ----
+  const confirmAndSend = useCallback(async () => {
+    const cId = caseIdRef.current;
+    if (!cId || !reviewData || reviewSubmitting) return;
+    setReviewSubmitting(true);
+
+    // (a) Final values from the panel — the family's edits are authoritative.
+    const finalDescription = buildFinalDescription(reviewData, reviewOriginalRef.current);
+
+    // (b) Persist the corrected case to Supabase (best-effort; the pipeline
+    //     route also persists server-side, so this never blocks the search).
+    try {
+      if (supabase) {
+        await supabase
+          .from('cases')
+          .update({ description: finalDescription, updated_at: new Date().toISOString() })
+          .eq('id', cId);
+      }
+    } catch (err) {
+      console.error('[agente] supabase case update failed:', err);
+    }
+
+    setDescription(finalDescription);
+    setShowReview(false);
+
+    // (c) Launch the pipeline with the edited data, not the interview originals.
+    await launchPipeline(cId, finalDescription);
+    setReviewSubmitting(false);
+  }, [reviewData, reviewSubmitting, launchPipeline]);
+
   // ---- Send to API ----
   const handleUserMessage = useCallback(async (text: string) => {
     setStatus('thinking'); setTranscript('');
@@ -156,7 +250,11 @@ export default function AgentePage() {
       if (data.description) {
         setDescription(data.description);
         if (data.readyForSearch && data.caseId) {
-          await launchPipeline(data.caseId, data.description);
+          // Don't auto-launch: show the editable summary so the family can
+          // review/correct every field before the search agents run.
+          reviewOriginalRef.current = data.description;
+          setReviewData(toEditable(data.description));
+          setShowReview(true);
         }
       }
 
@@ -215,8 +313,42 @@ export default function AgentePage() {
         <div className="start-screen">
           <div className="start-title">ARGUS</div>
           <div className="start-sub">Civilian resilience intake agent</div>
-          <button className="start-btn" onClick={handleStart}>Iniciar</button>
+          <button className="start-btn" onClick={() => setShowTerms(true)}>Iniciar</button>
         </div>
+
+        {showTerms && (
+          <div className="terms-backdrop" role="dialog" aria-modal="true" aria-labelledby="terms-title">
+            <div className="terms-modal">
+              <h2 className="terms-title" id="terms-title">Términos y condiciones</h2>
+              <div className="terms-body">
+                <p>Antes de comenzar, queremos que sepas cómo usaremos la información que compartas:</p>
+                <p>
+                  <strong>¿Para qué se usa la foto?</strong> La fotografía que envíes se utiliza únicamente
+                  para <strong>buscar coincidencias en fuentes públicas de internet</strong> (publicaciones y
+                  contenido público indexado) y para <strong>generar alertas dirigidas a las autoridades
+                  competentes</strong> que puedan ayudar en la búsqueda.
+                </p>
+                <p>
+                  <strong>¿Qué datos recopilamos?</strong> Los datos que nos brindes en la entrevista: nombre y
+                  datos de la persona buscada, rasgos físicos, señas particulares, última ubicación conocida,
+                  fecha y circunstancias, la fotografía de referencia y, si lo indicas, un número de contacto
+                  para avisarte de novedades.
+                </p>
+                <p>
+                  <strong>¿Cómo se usan?</strong> Estos datos se usan <strong>exclusivamente</strong> para la
+                  operación de búsqueda y la coordinación con autoridades. <strong>No se utilizan con fines
+                  comerciales</strong>, no se venden y no se comparten con terceros ajenos a la búsqueda.
+                </p>
+              </div>
+              <div className="terms-actions">
+                <button className="terms-cancel" onClick={() => setShowTerms(false)}>Cancelar</button>
+                <button className="terms-accept" onClick={() => { setShowTerms(false); handleStart(); }}>
+                  Acepto y continúo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -284,6 +416,46 @@ export default function AgentePage() {
         )}
         {ready && <a href="/dashboard" className="dash-link">Ver Dashboard en vivo →</a>}
       </div>
+
+      {/* Editable case summary — shown when the interview is complete, before
+          launching the search. The family can correct any field. */}
+      {showReview && reviewData && (
+        <div className="review-backdrop" role="dialog" aria-modal="true" aria-labelledby="review-title">
+          <div className="review-panel">
+            <h2 className="review-title" id="review-title">Revisa y confirma los datos</h2>
+            <p className="review-sub">
+              Puedes corregir cualquier campo antes de iniciar la búsqueda. Los agentes trabajarán con
+              esta versión final y confirmada.
+            </p>
+            <div className="review-fields">
+              {REVIEW_FIELDS.map(({ key, label }) => (
+                <label className="review-field" key={key}>
+                  <span className="review-label">{label}</span>
+                  {key === 'circunstancias' ? (
+                    <textarea
+                      className="review-input"
+                      rows={3}
+                      value={reviewData[key] ?? ''}
+                      onChange={(e) => setReviewData((prev) => ({ ...(prev || {}), [key]: e.target.value }))}
+                    />
+                  ) : (
+                    <input
+                      className="review-input"
+                      type="text"
+                      value={reviewData[key] ?? ''}
+                      onChange={(e) => setReviewData((prev) => ({ ...(prev || {}), [key]: e.target.value }))}
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+            {photoName && <div className="review-photo">Foto adjunta: {photoName}</div>}
+            <button className="review-submit" onClick={confirmAndSend} disabled={reviewSubmitting}>
+              {reviewSubmitting ? 'Enviando...' : 'Confirmar y enviar'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
