@@ -18,6 +18,7 @@ import LiveToasts from './components/LiveToasts';
 import HeatmapLegend from './components/HeatmapLegend';
 import OperatorControls from './components/OperatorControls';
 import MatchScanner from './components/MatchScanner';
+import PortraitScan from './components/PortraitScan';
 
 const MapView = dynamic(() => import('./dashboard/MapView'), { ssr: false });
 
@@ -107,6 +108,7 @@ export default function ArgusApp() {
   const [description, setDescription] = useState<any>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState<string | null>(null);
+  const [scanSrc, setScanSrc] = useState<string | null>(null); // portrait scan popup
   const [phone, setPhone] = useState('');
   const [authorityEmail, setAuthorityEmail] = useState('');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
@@ -626,6 +628,9 @@ export default function ArgusApp() {
     event.target.value = '';
     if (!file) return;
     setPhotoName(file.name);
+    // Instant "analyzing" popup with the facial-landmark scan over a local
+    // preview (blob: URL is same-origin → canvas-safe), while the upload runs.
+    setScanSrc(URL.createObjectURL(file));
     const form = new FormData();
     form.append('photo', file);
     try {
@@ -758,6 +763,16 @@ export default function ArgusApp() {
               </div>
             </div>
           </div>
+        )}
+
+        {scanSrc && (
+          <PortraitScan
+            src={scanSrc}
+            onClose={() => {
+              try { URL.revokeObjectURL(scanSrc); } catch {}
+              setScanSrc(null);
+            }}
+          />
         )}
       </main>
     );
