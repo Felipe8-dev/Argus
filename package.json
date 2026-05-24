@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test:ui": "playwright test",
+    "test:pipeline": "tsx tests/pipeline-trace.mts",
     "seed": "tsx scripts/seed-exif.ts",
     "agent": "tsx agent-worker/argus-agent.mts dev",
     "agent:start": "tsx agent-worker/argus-agent.mts start"

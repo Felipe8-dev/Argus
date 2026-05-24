@@ -29,14 +29,31 @@ async function emit(caseId: string, agent: string, event: string, payload: any =
   }
 }
 
-/** POST to an internal agent endpoint and parse JSON, never throwing. */
-async function post(origin: string, path: string, body: any): Promise<any> {
-  const res = await fetch(`${origin}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return res.json().catch(() => ({ ok: res.ok, status: res.status }));
+/**
+ * POST to an internal agent endpoint and parse JSON, never throwing.
+ *
+ * Retries transient network failures (a few attempts with linear backoff) and,
+ * if the endpoint is still unreachable, returns a structured error instead of
+ * throwing. This keeps one failing agent from aborting the whole orchestration:
+ * its branch degrades to a recorded no-op while the other agents run to
+ * completion — the resilience the graph comment promises.
+ */
+async function post(origin: string, path: string, body: any, attempts = 2): Promise<any> {
+  let lastErr: any;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await fetch(`${origin}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return res.json().catch(() => ({ ok: res.ok, status: res.status }));
+    } catch (err: any) {
+      lastErr = err;
+      if (attempt < attempts) await new Promise((r) => setTimeout(r, 250 * attempt));
+    }
+  }
+  return { ok: false, error: `request_failed:${lastErr?.message || 'unknown'}`, path };
 }
 
 /* ------------------------------------------------------------------ */
