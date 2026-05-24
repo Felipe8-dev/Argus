@@ -747,10 +747,10 @@ export default function ArgusApp() {
         {showPhoneModal && (
           <div className="modal-backdrop">
             <div className="phone-modal">
-              <div className="section-kicker">Contacto WhatsApp</div>
-              <h3>Numero para recibir avances</h3>
-              <p>Ejemplo Colombia: <strong>573054879364</strong>. Para la demo puedes usar <strong>3054879364</strong>.</p>
-              <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="3054879364" autoFocus />
+              <div className="section-kicker">📲 WhatsApp</div>
+              <h3>Tu número de WhatsApp</h3>
+              <p>Te avisaremos por <strong>WhatsApp</strong> cuando se activen los agentes y si hay una coincidencia. Ejemplo Colombia: <strong>3054879364</strong>.</p>
+              <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Tu WhatsApp (ej. 3054879364)" autoFocus />
               <input value={authorityEmail} onChange={(event) => setAuthorityEmail(event.target.value)} placeholder="correo autoridad demo (opcional)" />
               <div className="modal-actions">
                 <button onClick={() => setShowPhoneModal(false)}>Cancelar</button>
@@ -1004,13 +1004,13 @@ export default function ArgusApp() {
       {showPhoneModal && (
         <div className="modal-backdrop">
           <div className="phone-modal">
-            <div className="section-kicker">Contacto WhatsApp</div>
-            <h3>Número de la familia</h3>
+            <div className="section-kicker">📲 WhatsApp</div>
+            <h3>Tu número de WhatsApp</h3>
             <p>
-              Argus enviará avances y posibles coincidencias por WhatsApp. Formato Colombia:
-              {' '}<strong>3054879364</strong>.
+              Argus te enviará por <strong>WhatsApp</strong> el aviso de que se activaron los agentes y
+              cualquier coincidencia. Formato Colombia: {' '}<strong>3054879364</strong>.
             </p>
-            <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="3054879364" autoFocus />
+            <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Tu WhatsApp (ej. 3054879364)" autoFocus />
             <input value={authorityEmail} onChange={(event) => setAuthorityEmail(event.target.value)} placeholder="correo autoridad (opcional)" />
             <div className="modal-actions">
               <button onClick={() => setShowPhoneModal(false)}>Cancelar</button>
