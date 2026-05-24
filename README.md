@@ -185,6 +185,23 @@ npm run agent    # the Gemini Live voice worker (separate process)
 Simli still renders the avatar (lip-synced from the agent audio track). The
 legacy push-to-talk `/agente` page remains until the LiveKit path is verified.
 
+## Facial recognition scanner (face-api / "OpenCV" overlay)
+
+When a match arrives in the dashboard, `MatchScanner` (`app/components/`) runs
+client-side computer vision over the match media (a photo or video from the
+post) and the case portrait:
+
+- 68 facial-landmark points drawn with an animated scan sweep,
+- 128-d face recognition to identify the missing person among every face,
+- a green tracker box that locks onto them (and follows them across video
+  frames) with a confidence read-out.
+
+Stack: `@vladmandic/face-api` (SSD MobileNet + landmark68 + recognition),
+fully in-browser. Model weights are copied from the dependency into
+`public/models` by the `postinstall` script (`npm run face-models` to redo).
+Remote post media is loaded same-origin through `/api/media-proxy` (canvas-safe)
+after `/api/media-resolve` extracts the direct image/video from a post link.
+
 ## License
 
 MIT.

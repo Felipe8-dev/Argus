@@ -17,6 +17,7 @@ import StruereCopilot from './components/StruereCopilot';
 import LiveToasts from './components/LiveToasts';
 import HeatmapLegend from './components/HeatmapLegend';
 import OperatorControls from './components/OperatorControls';
+import MatchScanner from './components/MatchScanner';
 
 const MapView = dynamic(() => import('./dashboard/MapView'), { ssr: false });
 
@@ -939,6 +940,31 @@ export default function ArgusApp() {
           )}
         </div>
       </aside>
+
+      {/* Reconocimiento facial — escáner CV sobre la media de la coincidencia.
+          Aparece cuando un agente reporta un match con foto/video y el caso
+          tiene retrato. Colapsable con <details> (sin estado extra). */}
+      {(() => {
+        const scan = [...selectedMatches]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .find((m) => m.source_url || m.photo_url);
+        if (!scan || !selectedCase?.portrait_url) return null;
+        const media = (scan.source_url || scan.photo_url) as string;
+        return (
+          <details
+            open
+            className="ops-widget"
+            style={{ position: 'fixed', right: 16, bottom: 84, width: 'min(420px, 92vw)', zIndex: 45, padding: 12 }}
+          >
+            <summary
+              style={{ cursor: 'pointer', font: '600 12px ui-monospace, monospace', color: '#00e5ff', marginBottom: 8 }}
+            >
+              🔍 Reconocimiento facial · coincidencia
+            </summary>
+            <MatchScanner key={scan.id} mediaUrl={media} portraitUrl={selectedCase.portrait_url} />
+          </details>
+        );
+      })()}
 
       {/* Map mode tabs — bottom-center floating pill */}
       <div className="ops-widget ops-widget--maptabs">

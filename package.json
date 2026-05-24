@@ -8,6 +8,8 @@
     "start": "next start",
     "test:ui": "playwright test",
     "test:pipeline": "tsx tests/pipeline-trace.mts",
+    "postinstall": "node scripts/copy-face-models.mjs",
+    "face-models": "node scripts/copy-face-models.mjs",
     "seed": "tsx scripts/seed-exif.ts",
     "agent": "tsx agent-worker/argus-agent.mts dev",
     "agent:start": "tsx agent-worker/argus-agent.mts start"
@@ -21,6 +23,7 @@
     "@livekit/agents-plugin-silero": "^1.4.4",
     "@supabase/supabase-js": "^2.45.0",
     "@vercel/functions": "^3.6.0",
+    "@vladmandic/face-api": "^1.7.15",
     "leaflet": "^1.9.4",
     "livekit-client": "^2.19.0",
     "livekit-server-sdk": "^2.15.3",

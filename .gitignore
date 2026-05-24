@@ -19,3 +19,6 @@ scratchpad.md
 *.bak
 *.orig
 *.swp
+
+# face-api model weights (regenerated from @vladmandic/face-api via postinstall)
+public/models/
