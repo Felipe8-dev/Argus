@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { createClient } from '@supabase/supabase-js';
 import { withSpan } from '@/lib/trace';
 import { geocodeLocation } from '@/lib/orchestration/geocode';
 import { runArgusPipeline } from '@/lib/orchestration/graph';
+
+// LangGraph orchestration runs in the Node.js runtime (not Edge) and may take
+// longer than the default serverless budget. Raise the ceiling so the graph
+// can finish the full fan-out (Hobby allows up to 60s; bump if on Pro).
+export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 function getSupa() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -76,27 +83,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       payload: { status: 'orchestration_started', engine: 'langgraph' },
     });
 
-    // Hand off to the LangGraph orchestrator. Fire-and-forget so the UI gets a
-    // fast response and watches pipeline_events in realtime; the graph runs
-    // every agent (provenance → publish → alert → vision → sentinel → anchor,
-    // plus the parallel atlas/intel/osint/pulse branches) to completion.
-    runArgusPipeline({
-      caseId,
-      description: enrichedDescription,
-      photoUrl: photoUrl || null,
-      authorityEmail,
-      origin,
-      bannerUrl,
-      geo,
-    }).catch(async (err: any) => {
-      console.error('[launch-pipeline] graph error:', err?.message);
-      await db.from('pipeline_events').insert({
-        case_id: caseId,
-        agent: 'pipeline',
-        event: 'error',
-        payload: { status: 'pipeline_failed', error: err?.message },
-      });
-    });
+    // Hand off to the LangGraph orchestrator. The UI still gets a fast response
+    // and watches pipeline_events in realtime — but on Vercel serverless a bare
+    // fire-and-forget promise is killed the instant we return, aborting the
+    // graph mid-run. `waitUntil` keeps the function alive until the graph
+    // finishes (provenance → publish → alert → vision → sentinel → anchor, plus
+    // the parallel atlas/intel/osint/pulse branches) without blocking the
+    // response. Locally it simply runs the promise to completion.
+    waitUntil(
+      runArgusPipeline({
+        caseId,
+        description: enrichedDescription,
+        photoUrl: photoUrl || null,
+        authorityEmail,
+        origin,
+        bannerUrl,
+        geo,
+      }).catch(async (err: any) => {
+        console.error('[launch-pipeline] graph error:', err?.message);
+        await db.from('pipeline_events').insert({
+          case_id: caseId,
+          agent: 'pipeline',
+          event: 'error',
+          payload: { status: 'pipeline_failed', error: err?.message },
+        });
+      }),
+    );
 
     console.log(`[launch-pipeline] case=${caseId} photo=${!!photoUrl} → langgraph dispatched`);
 
