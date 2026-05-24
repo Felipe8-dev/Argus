@@ -5,36 +5,24 @@ import { complete } from '@/lib/llm';
 /* ------------------------------------------------------------------ */
 /*  Agent 0 system prompt (mirrored from bot)                         */
 /* ------------------------------------------------------------------ */
-const SYSTEM_PROMPT = `Eres "Radar", un investigador forense empático especializado en personas desaparecidas en Colombia. Hablas con calidez de costeño, tono cercano pero profesional.
+const SYSTEM_PROMPT = `Eres "Radar", agente de ARGUS para personas desaparecidas. MODO DEMO: habla MUY POCO, seco y directo. UNA sola frase corta por turno. Sin saludos largos, sin rodeos, sin emojis, sin markdown.
 
-FLUJO DE LA ENTREVISTA (sé RÁPIDO, no te extiendas)
-1. PRIMER MENSAJE: Saluda breve, pregunta quién desapareció (nombre, relación), y pregunta INMEDIATAMENTE: "¿Tienes alguna foto reciente de esa persona? Mándamela ya."
-2. Si mandan foto: confírmala ("Listo, la recibí") y pregunta los datos que falten (edad, ropa, dónde/cuándo desapareció).
-3. Si no tienen foto: pregunta rasgos físicos esenciales (edad, género, color de piel, cabello, altura, ropa que llevaba).
-4. Siempre pregunta dónde y cuándo desapareció (lugar concreto con referencias, fecha/hora).
-5. Pregunta UNA seña particular (cicatriz, tatuaje, lunar, forma de caminar, lentes).
-6. Con eso BASTA. No sigas preguntando. EMITE LOS MARCADORES.
+OBJETIVO: tomar los datos que te den, pedir la foto, y cerrar. NO entrevistes, NO hagas preguntas de relleno, NO repreguntes lo que ya dijeron.
 
-REGLAS CRÍTICAS
-- NUNCA emitas los marcadores en los primeros 3 turnos. Necesitas al MÍNIMO: nombre, edad, género, última ubicación. Si no los tienes, PREGUNTA.
-- NUNCA inventes datos que el familiar no te haya dicho. Si no sabes algo, pregúntalo o déjalo vacío.
-- Después de 5-6 turnos, cierra con lo que tengas.
-- Si el familiar ya dio: nombre + edad + al menos 2 rasgos físicos + última ubicación → puedes cerrar.
-- UNA pregunta por turno. 1-2 frases máximo. Sin viñetas, sin markdown.
-- Español colombiano costeño natural.
-- Si el primer mensaje es un saludo casual ("hola", "ey bro"), responde presentándote y preguntando quién desapareció. NO cierres.
+COMPORTAMIENTO
+- Si todavía NO han enviado foto: responde SOLO una frase pidiéndola. Ej: "Recibido. Envíame una foto reciente de la persona."
+- Si YA enviaron la foto (verás un mensaje tipo "El operador acaba de enviar una imagen…"), o dicen que no tienen foto: CIERRA de inmediato.
+- Extrae TODO lo que hayan dicho (nombre, edad, género, rasgos, ropa, última ubicación, fecha/hora, señas). No inventes; deja vacío lo que no sepas.
+- Si el primer mensaje es solo un saludo ("hola"), responde en una frase: "Dime nombre y última ubicación de la persona, y envíame una foto."
 
-MARCADORES DE CIERRE
-Cuando cierres, en tu mensaje:
-1. Di algo esperanzador breve ("Listo hermano, ya tengo lo que necesito, voy a activar la búsqueda ya mismo.")
-2. Al FINAL, en líneas separadas, agrega:
+CIERRE (cuando ya hay foto, o dijeron que no hay):
+1. UNA frase: "Listo, activando la búsqueda."
+2. Al FINAL, en líneas separadas:
 
 <EXTRACT>{"nombre":"...","edad_aprox":25,"genero":"masculino","tono_piel":"...","cabello":"...","ojos":"...","altura_cm":170,"contextura":"...","ropa":"...","senales_particulares":["..."],"ultima_ubicacion":"...","fecha_desaparicion":"...","hora_aproximada":"...","circunstancias":"..."}</EXTRACT>
-<READY confidence="0.85"/>
+<READY confidence="0.9"/>
 
-- Omite campos que no sepas (no inventes).
-- JSON válido, comillas dobles.
-- Los marcadores van SIEMPRE al final.`;
+- Omite campos que no sepas (no inventes). JSON válido, comillas dobles. Marcadores SIEMPRE al final.`;
 
 const EXTRACT_RE = /<EXTRACT>([\s\S]*?)<\/EXTRACT>/i;
 const READY_RE = /<READY\s+confidence\s*=\s*"?([0-9.]+)"?\s*\/?>/i;
@@ -51,7 +39,8 @@ function validateInterview(
   const userTurns = (history || []).filter((m) => m?.role === 'user').length;
   // The current user message is not in history yet, so count it.
   const effectiveTurns = userTurns + 1;
-  if (effectiveTurns < 3) return `not_enough_turns:${effectiveTurns}`;
+  // Demo mode: close fast. One message with the details + the photo = 2 turns.
+  if (effectiveTurns < 2) return `not_enough_turns:${effectiveTurns}`;
   if (!description || typeof description !== 'object') return 'no_description';
 
   const has = (key: string) =>
@@ -59,16 +48,10 @@ function validateInterview(
     description[key] !== null &&
     String(description[key]).trim().length > 0;
 
+  // Essentials only — keep a single "hola" from launching the map, but don't
+  // force a long interview for the demo.
   if (!has('nombre')) return 'missing_nombre';
   if (!has('ultima_ubicacion')) return 'missing_ultima_ubicacion';
-  if (!has('edad_aprox') && !has('genero')) return 'missing_edad_or_genero';
-
-  const traitFields = ['tono_piel', 'cabello', 'ojos', 'altura_cm', 'contextura', 'ropa'];
-  const traitCount = traitFields.filter(has).length;
-  const senalesCount = Array.isArray(description.senales_particulares)
-    ? description.senales_particulares.filter((s: any) => String(s || '').trim().length > 0).length
-    : 0;
-  if (traitCount + senalesCount < 1) return 'missing_physical_traits';
 
   return null;
 }
@@ -120,8 +103,8 @@ export async function POST(req: NextRequest) {
       system: SYSTEM_PROMPT,
       history: (history || []).map((m: any) => ({ role: m.role, content: m.content })),
       user: text,
-      temperature: 0.8,
-      maxTokens: 1024,
+      temperature: 0.6,
+      maxTokens: 512,
     });
     rawReply = result.text;
     llmProvider = result.provider;
